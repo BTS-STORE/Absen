@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi Digital SD Negeri Ceria 01</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(255, 200, 200, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 80% 30%, rgba(200, 255, 200, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 40% 70%, rgba(200, 200, 255, 0.2) 0%, transparent 20%);
+            background-attachment: fixed;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #4338ca;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .btn-secondary {
+            background-color: #f97316;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #ea580c;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-success:hover {
+            background-color: #059669;
+        }
+        
+        .card {
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .modal {
+            transition: opacity 0.3s ease;
+        }
+        
+        table th, table td {
+            padding: 12px 16px;
+        }
+        
+        .attendance-option {
+            transition: all 0.2s ease;
+        }
+        
+        .attendance-option:hover {
+            transform: scale(1.05);
+        }
+        
+        .attendance-option.selected {
+            border: 2px solid #4f46e5;
+            background-color: #ede9fe;
+        }
+        
+        .status-hadir { background-color: #d1fae5; }
+        .status-izin { background-color: #fef3c7; }
+        .status-sakit { background-color: #fee2e2; }
+        .status-alfa { background-color: #f3f4f6; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+        
+        .editable-text {
+            border-bottom: 2px dashed transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+        
+        .editable-text:hover {
+            border-bottom: 2px dashed #4f46e5;
+        }
+        
+        .editable-text:focus {
+            outline: none;
+            border-bottom: 2px solid #4f46e5;
+            background-color: rgba(79, 70, 229, 0.1);
+        }
+        
+        .report-filter-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .report-filter-btn.active {
+            background-color: #4f46e5;
+            color: white;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h1 id="school-name" class="text-3xl font-extrabold text-indigo-600 editable-text" contenteditable="true" spellcheck="false">SD Negeri Ceria 01</h1>
+                    <p class="mt-1">Selamat Datang, <span id="teacher-name" class="text-gray-600 editable-text" contenteditable="true" spellcheck="false">Ibu Anisa</span>!</p>
+                </div>
+                <div class="mt-4 md:mt-0 text-center md:text-right">
+                    <p id="current-date" class="text-lg font-semibold text-gray-700"></p>
+                    <p id="current-time" class="text-2xl font-bold text-indigo-500"></p>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Navigation Tabs -->
+        <div class="bg-white rounded-xl shadow-md mb-8 overflow-hidden">
+            <div class="flex flex-wrap text-sm font-medium text-center" id="tabs">
+                <button class="tab-btn flex-grow py-4 px-6 text-indigo-600 border-b-2 border-indigo-600 active" data-tab="beranda">
+                    <span class="text-xl mr-2">🏠</span> Beranda
+                </button>
+                <button class="tab-btn flex-grow py-4 px-6 text-gray-500 hover:text-indigo-600" data-tab="data-siswa">
+                    <span class="text-xl mr-2">👨‍👩‍👧‍👦</span> Data Siswa
+                </button>
+                <button class="tab-btn flex-grow py-4 px-6 text-gray-500 hover:text-indigo-600" data-tab="absensi">
+                    <span class="text-xl mr-2">📝</span> Absensi
+                </button>
+                <button class="tab-btn flex-grow py-4 px-6 text-gray-500 hover:text-indigo-600" data-tab="rekap">
+                    <span class="text-xl mr-2">📊</span> Rekap
+                </button>
+                <button class="tab-btn flex-grow py-4 px-6 text-gray-500 hover:text-indigo-600" data-tab="pengaturan">
+                    <span class="text-xl mr-2">⚙️</span> Pengaturan
+                </button>
+            </div>
+        </div>
+        
+        <!-- Content Area -->
+        <div class="tab-content active animate-fade-in" id="beranda">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl shadow-xl p-8 text-white">
+                    <h2 class="text-3xl font-bold mb-4">Sistem Absensi Digital</h2>
+                    <p class="mb-6 text-indigo-100">Kelola absensi siswa dengan mudah dan menyenangkan. Semua data tersimpan dengan aman di perangkat Anda.</p>
+                    <button id="start-attendance-btn" class="btn-secondary rounded-xl py-4 px-8 text-xl font-bold shadow-lg flex items-center">
+                        🚀 Mulai Absensi Hari Ini
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-2xl shadow-lg p-6 card">
+                        <div class="text-4xl mb-4 text-orange-500">👨‍👩‍👧‍👦</div>
+                        <h3 class="text-xl font-bold mb-2">Data Siswa</h3>
+                        <p class="text-gray-600 mb-4">Kelola informasi siswa dengan mudah</p>
+                        <button class="btn-primary rounded-lg py-2 px-4 w-full" data-tab-target="data-siswa">Lihat Data</button>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-lg p-6 card">
+                        <div class="text-4xl mb-4 text-green-500">📊</div>
+                        <h3 class="text-xl font-bold mb-2">Rekap Absensi</h3>
+                        <p class="text-gray-600 mb-4">Lihat dan ekspor laporan kehadiran</p>
+                        <button class="btn-primary rounded-lg py-2 px-4 w-full" data-tab-target="rekap">Lihat Rekap</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 bg-white rounded-2xl shadow-lg p-6">
+                <h3 class="text-xl font-bold mb-4 text-indigo-600">Statistik Kehadiran</h3>
+                <div id="attendance-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-green-100 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-bold text-green-600" id="stat-hadir">0</div>
+                        <div class="text-sm text-green-800">Hadir</div>
+                    </div>
+                    <div class="bg-yellow-100 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-bold text-yellow-600" id="stat-izin">0</div>
+                        <div class="text-sm text-yellow-800">Izin</div>
+                    </div>
+                    <div class="bg-red-100 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-bold text-red-600" id="stat-sakit">0</div>
+                        <div class="text-sm text-red-800">Sakit</div>
+                    </div>
+                    <div class="bg-gray-100 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-bold text-gray-600" id="stat-alfa">0</div>
+                        <div class="text-sm text-gray-800">Alfa</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content animate-fade-in" id="data-siswa">
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-indigo-600 mb-4 md:mb-0">Data Siswa</h2>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <select id="student-level-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="all">Semua Jenjang</option>
+                            <option value="SD">SD</option>
+                            <option value="SMP">SMP</option>
+                            <option value="SMA">SMA</option>
+                        </select>
+                        <select id="student-class-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="all">Semua Kelas</option>
+                        </select>
+                        <button id="add-student-btn" class="btn-primary rounded-lg py-2 px-4 flex items-center">
+                            <span class="mr-2">+</span> Tambah Siswa
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                        <thead class="bg-indigo-100">
+                            <tr>
+                                <th class="text-left rounded-tl-lg">No</th>
+                                <th class="text-left">Nama Siswa</th>
+                                <th class="text-left">NIS</th>
+                                <th class="text-left">Jenjang</th>
+                                <th class="text-left">Kelas</th>
+                                <th class="text-center rounded-tr-lg">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-table-body">
+                            <!-- Student data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="no-students-message" class="text-center py-8 text-gray-500">
+                    Belum ada data siswa. Silakan tambahkan data siswa baru.
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content animate-fade-in" id="absensi">
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <h2 class="text-2xl font-bold text-indigo-600 mb-6">Pengambilan Absensi</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="attendance-level-select" class="block text-sm font-medium text-gray-700 mb-2">Pilih Jenjang</label>
+                        <select id="attendance-level-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">-- Pilih Jenjang --</option>
+                            <option value="SD">SD</option>
+                            <option value="SMP">SMP</option>
+                            <option value="SMA">SMA</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="class-select" class="block text-sm font-medium text-gray-700 mb-2">Pilih Kelas</label>
+                        <select id="class-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">-- Pilih Kelas --</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="attendance-form" class="hidden">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">Tanggal: <span id="attendance-date"></span></h3>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                            <thead class="bg-indigo-100">
+                                <tr>
+                                    <th class="text-left rounded-tl-lg">No</th>
+                                    <th class="text-left">Nama Siswa</th>
+                                    <th class="text-left">NIS</th>
+                                    <th class="text-center rounded-tr-lg">Status Kehadiran</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendance-table-body">
+                                <!-- Attendance form will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-6 text-center">
+                        <button id="save-attendance-btn" class="btn-primary rounded-lg py-3 px-6 text-lg font-bold">
+                            Simpan Absensi
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="no-class-selected" class="text-center py-12 text-gray-500">
+                    Silakan pilih jenjang dan kelas untuk melakukan absensi.
+                </div>
+                
+                <div id="no-students-in-class" class="hidden text-center py-12 text-gray-500">
+                    Tidak ada siswa di kelas ini. Silakan tambahkan siswa terlebih dahulu.
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content animate-fade-in" id="rekap">
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                    <h2 class="text-2xl font-bold text-indigo-600 mb-4 md:mb-0">Rekapitulasi Absensi</h2>
+                </div>
+                
+                <!-- Report Type Selector -->
+                <div class="mb-6">
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button class="report-filter-btn active px-4 py-2 rounded-lg border border-gray-300" data-report-type="daily">Harian</button>
+                        <button class="report-filter-btn px-4 py-2 rounded-lg border border-gray-300" data-report-type="weekly">Mingguan</button>
+                        <button class="report-filter-btn px-4 py-2 rounded-lg border border-gray-300" data-report-type="monthly">Bulanan</button>
+                        <button class="report-filter-btn px-4 py-2 rounded-lg border border-gray-300" data-report-type="semester">Semester</button>
+                    </div>
+                    
+                    <!-- Daily Report Filters -->
+                    <div id="daily-report-filters" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="rekap-date" class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+                            <input type="date" id="rekap-date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="rekap-level-filter" class="block text-sm font-medium text-gray-700 mb-1">Jenjang</label>
+                            <select id="rekap-level-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">Semua Jenjang</option>
+                                <option value="SD">SD</option>
+                                <option value="SMP">SMP</option>
+                                <option value="SMA">SMA</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="rekap-class-filter" class="block text-sm font-medium text-gray-700 mb-1">Kelas</label>
+                            <select id="rekap-class-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">Semua Kelas</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Weekly Report Filters -->
+                    <div id="weekly-report-filters" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                        <div>
+                            <label for="rekap-week" class="block text-sm font-medium text-gray-700 mb-1">Minggu</label>
+                            <div class="flex gap-2">
+                                <input type="date" id="rekap-week-start" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Mulai">
+                                <span class="self-center">-</span>
+                                <input type="date" id="rekap-week-end" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Selesai">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="rekap-week-level-filter" class="block text-sm font-medium text-gray-700 mb-1">Jenjang</label>
+                            <select id="rekap-week-level-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">Semua Jenjang</option>
+                                <option value="SD">SD</option>
+                                <option value="SMP">SMP</option>
+                                <option value="SMA">SMA</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="rekap-week-class-filter" class="block text-sm font-medium text-gray-700 mb-1">Kelas</label>
+                            <select id="rekap-week-class-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">Semua Kelas</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Monthly Report Filters -->
+                    <div id="monthly-report-filters" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                        <div>
+                            <label for="rekap-month" class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                            <input type="month" id="rekap-month" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="rekap-month-level-filter" class="block text-sm font-medium text-gray-700 mb-1">Jenjang</label>
+                            <select id="rekap-month-level-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">Semua Jenjang</option>
+                                <option value="SD">SD</option>
+                                <option value="SMP">SMP</option>
+                                <option value="SMA">SMA</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="rekap-month-class-filter" class="block text-sm font-medium text-gray-700 mb-1">Kelas</label>
+                            <select id="rekap-month-class-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">Semua Kelas</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Semester Report Filters -->
+                    <div id="semester-report-filters" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                        <div>
+                            <label for="rekap-semester" class="block text-sm font-medium text-gray-700 mb-1">Semester</label>
+                            <select id="rekap-semester" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="1">Semester 1</option>
+                                <option value="2">Semester 2</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="rekap-year" class="block text-sm font-medium text-gray-700 mb-1">Tahun Ajaran</label>
+                            <select id="rekap-year" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="rekap-semester-level-filter" class="block text-sm font-medium text-gray-700 mb-1">Jenjang</label>
+                            <select id="rekap-semester-level-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">Semua Jenjang</option>
+                                <option value="SD">SD</option>
+                                <option value="SMP">SMP</option>
+                                <option value="SMA">SMA</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="rekap-semester-class-filter" class="block text-sm font-medium text-gray-700 mb-1">Kelas</label>
+                            <select id="rekap-semester-class-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">Semua Kelas</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                    <button id="apply-filter-btn" class="btn-primary rounded-lg py-2 px-4 flex items-center justify-center">
+                        <span class="mr-2">🔍</span> Terapkan Filter
+                    </button>
+                    
+                    <button id="export-pdf-btn" class="btn-secondary rounded-lg py-2 px-4 flex items-center justify-center">
+                        <span class="mr-2">📄</span> Ekspor ke PDF
+                    </button>
+                    
+                    <button id="export-excel-btn" class="btn-success rounded-lg py-2 px-4 flex items-center justify-center">
+                        <span class="mr-2">📊</span> Ekspor ke Excel
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                        <thead class="bg-indigo-100">
+                            <tr>
+                                <th class="text-left rounded-tl-lg">No</th>
+                                <th class="text-left">Tanggal</th>
+                                <th class="text-left">Nama Siswa</th>
+                                <th class="text-left">NIS</th>
+                                <th class="text-left">Jenjang</th>
+                                <th class="text-left">Kelas</th>
+                                <th class="text-center rounded-tr-lg">Status Kehadiran</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rekap-table-body">
+                            <!-- Rekap data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="no-rekap-data" class="text-center py-8 text-gray-500">
+                    Belum ada data absensi. Silakan lakukan absensi terlebih dahulu.
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content animate-fade-in" id="pengaturan">
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <h2 class="text-2xl font-bold text-indigo-600 mb-6">Pengaturan Aplikasi</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-indigo-50 rounded-xl p-6">
+                        <h3 class="text-lg font-semibold text-indigo-700 mb-4">Informasi Sekolah</h3>
+                        
+                        <div class="mb-4">
+                            <label for="settings-school-name" class="block text-sm font-medium text-gray-700 mb-1">Nama Sekolah</label>
+                            <input type="text" id="settings-school-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="settings-teacher-name" class="block text-sm font-medium text-gray-700 mb-1">Nama Guru</label>
+                            <input type="text" id="settings-teacher-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <button id="save-settings-btn" class="btn-primary rounded-lg py-2 px-4 w-full">
+                            Simpan Pengaturan
+                        </button>
+                    </div>
+                    
+                    <div class="bg-orange-50 rounded-xl p-6">
+                        <h3 class="text-lg font-semibold text-orange-700 mb-4">Manajemen Data</h3>
+                        
+                        <p class="text-gray-600 mb-6">Anda dapat mengekspor atau menghapus semua data yang tersimpan di aplikasi ini.</p>
+                        
+                        <div class="flex flex-col gap-3">
+                            <button id="export-all-data-btn" class="btn-secondary rounded-lg py-2 px-4 flex items-center justify-center">
+                                <span class="mr-2">💾</span> Ekspor Semua Data
+                            </button>
+                            
+                            <button id="reset-all-data-btn" class="btn-danger rounded-lg py-2 px-4 flex items-center justify-center">
+                                <span class="mr-2">🗑️</span> Hapus Semua Data
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-50 rounded-xl p-6 md:col-span-2">
+                        <h3 class="text-lg font-semibold text-blue-700 mb-4">Pengaturan Jenjang dan Kelas</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-2">SD</h4>
+                                <div class="mb-2">
+                                    <label for="sd-classes" class="block text-sm text-gray-600 mb-1">Jumlah Kelas per Tingkat</label>
+                                    <input type="number" id="sd-classes" min="1" max="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="3">
+                                </div>
+                                <div>
+                                    <label for="sd-grades" class="block text-sm text-gray-600 mb-1">Jumlah Tingkat</label>
+                                    <input type="number" id="sd-grades" min="1" max="6" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="6">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-2">SMP</h4>
+                                <div class="mb-2">
+                                    <label for="smp-classes" class="block text-sm text-gray-600 mb-1">Jumlah Kelas per Tingkat</label>
+                                    <input type="number" id="smp-classes" min="1" max="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="3">
+                                </div>
+                                <div>
+                                    <label for="smp-grades" class="block text-sm text-gray-600 mb-1">Jumlah Tingkat</label>
+                                    <input type="number" id="smp-grades" min="1" max="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="3">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-2">SMA</h4>
+                                <div class="mb-2">
+                                    <label for="sma-classes" class="block text-sm text-gray-600 mb-1">Jumlah Kelas per Tingkat</label>
+                                    <input type="number" id="sma-classes" min="1" max="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="3">
+                                </div>
+                                <div>
+                                    <label for="sma-grades" class="block text-sm text-gray-600 mb-1">Jumlah Tingkat</label>
+                                    <input type="number" id="sma-grades" min="1" max="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="3">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button id="save-class-settings-btn" class="btn-primary rounded-lg py-2 px-4">
+                                Simpan Pengaturan Kelas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Student Modal -->
+    <div id="student-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 animate-fade-in">
+            <h3 id="student-modal-title" class="text-xl font-bold text-indigo-600 mb-4">Tambah Siswa Baru</h3>
+            
+            <form id="student-form">
+                <input type="hidden" id="student-id">
+                
+                <div class="mb-4">
+                    <label for="student-name" class="block text-sm font-medium text-gray-700 mb-1">Nama Siswa</label>
+                    <input type="text" id="student-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="student-nis" class="block text-sm font-medium text-gray-700 mb-1">NIS</label>
+                    <input type="text" id="student-nis" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="student-level" class="block text-sm font-medium text-gray-700 mb-1">Jenjang</label>
+                    <select id="student-level" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                        <option value="">-- Pilih Jenjang --</option>
+                        <option value="SD">SD</option>
+                        <option value="SMP">SMP</option>
+                        <option value="SMA">SMA</option>
+                    </select>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="student-class" class="block text-sm font-medium text-gray-700 mb-1">Kelas</label>
+                    <select id="student-class" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                        <option value="">-- Pilih Kelas --</option>
+                    </select>
+                </div>
+                
+                <div class="flex justify-end gap-3">
+                    <button type="button" id="cancel-student-btn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">
+                        Batal
+                    </button>
+                    <button type="submit" id="save-student-btn" class="btn-primary rounded-lg py-2 px-4">
+                        Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 animate-fade-in">
+            <h3 class="text-xl font-bold text-red-600 mb-4">Konfirmasi Hapus</h3>
+            
+            <p class="mb-6 text-gray-700">Apakah Anda yakin ingin menghapus data siswa <span id="delete-student-name" class="font-semibold"></span>?</p>
+            
+            <div class="flex justify-end gap-3">
+                <button id="cancel-delete-btn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">
+                    Batal
+                </button>
+                <button id="confirm-delete-btn" class="btn-danger rounded-lg py-2 px-4">
+                    Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Reset Confirmation Modal -->
+    <div id="reset-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 animate-fade-in">
+            <h3 class="text-xl font-bold text-red-600 mb-4">Konfirmasi Hapus Semua Data</h3>
+            
+            <p class="mb-6 text-gray-700">Apakah Anda yakin ingin menghapus <span class="font-semibold">SEMUA DATA</span> aplikasi? Tindakan ini tidak dapat dibatalkan.</p>
+            
+            <div class="flex justify-end gap-3">
+                <button id="cancel-reset-btn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">
+                    Batal
+                </button>
+                <button id="confirm-reset-btn" class="btn-danger rounded-lg py-2 px-4">
+                    Hapus Semua Data
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Data Storage
+        let students = [];
+        let attendanceRecords = [];
+        let appSettings = {
+            schoolName: "SD Negeri Ceria 01",
+            teacherName: "Ibu Anisa",
+            classSettings: {
+                SD: { classes: 3, grades: 6 },
+                SMP: { classes: 3, grades: 3 },
+                SMA: { classes: 3, grades: 3 }
+            }
+        };
+        
+        // DOM Elements
+        const tabs = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const currentDateElement = document.getElementById('current-date');
+        const currentTimeElement = document.getElementById('current-time');
+        const studentTableBody = document.getElementById('student-table-body');
+        const noStudentsMessage = document.getElementById('no-students-message');
+        const studentModal = document.getElementById('student-modal');
+        const studentForm = document.getElementById('student-form');
+        const studentModalTitle = document.getElementById('student-modal-title');
+        const studentIdInput = document.getElementById('student-id');
+        const studentNameInput = document.getElementById('student-name');
+        const studentNisInput = document.getElementById('student-nis');
+        const studentLevelInput = document.getElementById('student-level');
+        const studentClassInput = document.getElementById('student-class');
+        const addStudentBtn = document.getElementById('add-student-btn');
+        const cancelStudentBtn = document.getElementById('cancel-student-btn');
+        const deleteModal = document.getElementById('delete-modal');
+        const deleteStudentName = document.getElementById('delete-student-name');
+        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        const attendanceLevelSelect = document.getElementById('attendance-level-select');
+        const classSelect = document.getElementById('class-select');
+        const attendanceForm = document.getElementById('attendance-form');
+        const noClassSelected = document.getElementById('no-class-selected');
+        const noStudentsInClass = document.getElementById('no-students-in-class');
+        const attendanceDate = document.getElementById('attendance-date');
+        const attendanceTableBody = document.getElementById('attendance-table-body');
+        const saveAttendanceBtn = document.getElementById('save-attendance-btn');
+        const rekapTableBody = document.getElementById('rekap-table-body');
+        const noRekapData = document.getElementById('no-rekap-data');
+        const rekapLevelFilter = document.getElementById('rekap-level-filter');
+        const rekapClassFilter = document.getElementById('rekap-class-filter');
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
+        const exportExcelBtn = document.getElementById('export-excel-btn');
+        const startAttendanceBtn = document.getElementById('start-attendance-btn');
+        const schoolNameElement = document.getElementById('school-name');
+        const teacherNameElement = document.getElementById('teacher-name');
+        const settingsSchoolNameInput = document.getElementById('settings-school-name');
+        const settingsTeacherNameInput = document.getElementById('settings-teacher-name');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        const exportAllDataBtn = document.getElementById('export-all-data-btn');
+        const resetAllDataBtn = document.getElementById('reset-all-data-btn');
+        const resetModal = document.getElementById('reset-modal');
+        const cancelResetBtn = document.getElementById('cancel-reset-btn');
+        const confirmResetBtn = document.getElementById('confirm-reset-btn');
+        const studentLevelFilter = document.getElementById('student-level-filter');
+        const studentClassFilter = document.getElementById('student-class-filter');
+        const reportFilterBtns = document.querySelectorAll('.report-filter-btn');
+        const reportFilters = {
+            daily: document.getElementById('daily-report-filters'),
+            weekly: document.getElementById('weekly-report-filters'),
+            monthly: document.getElementById('monthly-report-filters'),
+            semester: document.getElementById('semester-report-filters')
+        };
+        const rekapDate = document.getElementById('rekap-date');
+        const rekapWeekStart = document.getElementById('rekap-week-start');
+        const rekapWeekEnd = document.getElementById('rekap-week-end');
+        const rekapMonth = document.getElementById('rekap-month');
+        const rekapSemester = document.getElementById('rekap-semester');
+        const rekapYear = document.getElementById('rekap-year');
+        const applyFilterBtn = document.getElementById('apply-filter-btn');
+        const sdClassesInput = document.getElementById('sd-classes');
+        const sdGradesInput = document.getElementById('sd-grades');
+        const smpClassesInput = document.getElementById('smp-classes');
+        const smpGradesInput = document.getElementById('smp-grades');
+        const smaClassesInput = document.getElementById('sma-classes');
+        const smaGradesInput = document.getElementById('sma-grades');
+        const saveClassSettingsBtn = document.getElementById('save-class-settings-btn');
+        
+        // Initialize the application
+        function init() {
+            loadData();
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            renderStudentTable();
+            updateClassDropdowns();
+            renderRekapTable();
+            updateAttendanceStats();
+            updateAppSettings();
+            initializeReportFilters();
+            
+            // Set up event listeners
+            setupEventListeners();
+        }
+        
+        // Update date and time display
+        function updateDateTime() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            currentDateElement.textContent = now.toLocaleDateString('id-ID', options);
+            
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            currentTimeElement.textContent = now.toLocaleTimeString('id-ID', timeOptions);
+            
+            // Update attendance date
+            attendanceDate.textContent = now.toLocaleDateString('id-ID', options);
+        }
+        
+        // Load data from localStorage
+        function loadData() {
+            const storedStudents = localStorage.getItem('students');
+            if (storedStudents) {
+                students = JSON.parse(storedStudents);
+            }
+            
+            const storedAttendance = localStorage.getItem('attendanceRecords');
+            if (storedAttendance) {
+                attendanceRecords = JSON.parse(storedAttendance);
+            }
+            
+            const storedSettings = localStorage.getItem('appSettings');
+            if (storedSettings) {
+                appSettings = JSON.parse(storedSettings);
+            }
+        }
+        
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('students', JSON.stringify(students));
+            localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+            localStorage.setItem('appSettings', JSON.stringify(appSettings));
+        }
+        
+        // Update app settings in the UI
+        function updateAppSettings() {
+            // Update header
+            schoolNameElement.textContent = appSettings.schoolName;
+            teacherNameElement.textContent = appSettings.teacherName;
+            
+            // Update settings form
+            settingsSchoolNameInput.value = appSettings.schoolName;
+            settingsTeacherNameInput.value = appSettings.teacherName;
+            
+            // Update class settings inputs
+            sdClassesInput.value = appSettings.classSettings.SD.classes;
+            sdGradesInput.value = appSettings.classSettings.SD.grades;
+            smpClassesInput.value = appSettings.classSettings.SMP.classes;
+            smpGradesInput.value = appSettings.classSettings.SMP.grades;
+            smaClassesInput.value = appSettings.classSettings.SMA.classes;
+            smaGradesInput.value = appSettings.classSettings.SMA.grades;
+            
+            // Update document title
+            document.title = `Sistem Absensi Digital ${appSettings.schoolName}`;
+        }
+        
+        // Initialize report filters
+        function initializeReportFilters() {
+            // Set default date values
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            rekapDate.value = todayStr;
+            
+            // Set default week values (current week)
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            const endOfWeek = new Date(today);
+            endOfWeek.setDate(today.getDate() + (6 - today.getDay()));
+            
+            rekapWeekStart.value = startOfWeek.toISOString().split('T')[0];
+            rekapWeekEnd.value = endOfWeek.toISOString().split('T')[0];
+            
+            // Set default month value
+            const currentMonth = today.toISOString().substring(0, 7);
+            rekapMonth.value = currentMonth;
+            
+            // Populate year dropdown for semester report
+            const currentYear = today.getFullYear();
+            for (let year = currentYear - 5; year <= currentYear + 5; year++) {
+                const academicYear = `${year}/${year + 1}`;
+                const option = document.createElement('option');
+                option.value = academicYear;
+                option.textContent = academicYear;
+                if (year === currentYear) {
+                    option.selected = true;
+                }
+                rekapYear.appendChild(option);
+            }
+        }
+        
+        // Set up event listeners
+        function setupEventListeners() {
+            // Tab navigation
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active', 'text-indigo-600', 'border-indigo-600'));
+                    tab.classList.add('active', 'text-indigo-600', 'border-indigo-600');
+                    
+                    const tabId = tab.getAttribute('data-tab');
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // Tab navigation from buttons
+            document.querySelectorAll('[data-tab-target]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.getAttribute('data-tab-target');
+                    tabs.forEach(tab => {
+                        tab.classList.remove('active', 'text-indigo-600', 'border-indigo-600');
+                        if (tab.getAttribute('data-tab') === tabId) {
+                            tab.classList.add('active', 'text-indigo-600', 'border-indigo-600');
+                        }
+                    });
+                    
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // Start attendance button
+            startAttendanceBtn.addEventListener('click', () => {
+                tabs.forEach(tab => {
+                    tab.classList.remove('active', 'text-indigo-600', 'border-indigo-600');
+                    if (tab.getAttribute('data-tab') === 'absensi') {
+                        tab.classList.add('active', 'text-indigo-600', 'border-indigo-600');
+                    }
+                });
+                
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById('absensi').classList.add('active');
+            });
+            
+            // Add student button
+            addStudentBtn.addEventListener('click', () => {
+                studentModalTitle.textContent = 'Tambah Siswa Baru';
+                studentIdInput.value = '';
+                studentForm.reset();
+                studentModal.classList.remove('hidden');
+            });
+            
+            // Cancel student button
+            cancelStudentBtn.addEventListener('click', () => {
+                studentModal.classList.add('hidden');
+            });
+            
+            // Student level change
+            studentLevelInput.addEventListener('change', () => {
+                updateStudentClassOptions();
+            });
+            
+            // Student form submission
+            studentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const id = studentIdInput.value;
+                const name = studentNameInput.value;
+                const nis = studentNisInput.value;
+                const level = studentLevelInput.value;
+                const className = studentClassInput.value;
+                
+                if (id) {
+                    // Edit existing student
+                    const index = students.findIndex(student => student.id === id);
+                    if (index !== -1) {
+                        students[index] = { id, name, nis, level, class: className };
+                    }
+                } else {
+                    // Add new student
+                    const newId = Date.now().toString();
+                    students.push({ id: newId, name, nis, level, class: className });
+                }
+                
+                saveData();
+                renderStudentTable();
+                updateClassDropdowns();
+                studentModal.classList.add('hidden');
+            });
+            
+            // Cancel delete button
+            cancelDeleteBtn.addEventListener('click', () => {
+                deleteModal.classList.add('hidden');
+            });
+            
+            // Attendance level select change
+            attendanceLevelSelect.addEventListener('change', () => {
+                updateAttendanceClassOptions();
+                
+                // Reset class select
+                classSelect.value = '';
+                attendanceForm.classList.add('hidden');
+                noStudentsInClass.classList.add('hidden');
+                noClassSelected.classList.remove('hidden');
+            });
+            
+            // Class select change
+            classSelect.addEventListener('change', () => {
+                const selectedLevel = attendanceLevelSelect.value;
+                const selectedClass = classSelect.value;
+                
+                if (selectedLevel && selectedClass) {
+                    noClassSelected.classList.add('hidden');
+                    
+                    const studentsInClass = students.filter(
+                        student => student.level === selectedLevel && student.class === selectedClass
+                    );
+                    
+                    if (studentsInClass.length > 0) {
+                        noStudentsInClass.classList.add('hidden');
+                        attendanceForm.classList.remove('hidden');
+                        renderAttendanceForm(selectedLevel, selectedClass);
+                    } else {
+                        attendanceForm.classList.add('hidden');
+                        noStudentsInClass.classList.remove('hidden');
+                    }
+                } else {
+                    attendanceForm.classList.add('hidden');
+                    noStudentsInClass.classList.add('hidden');
+                    noClassSelected.classList.remove('hidden');
+                }
+            });
+            
+            // Save attendance button
+            saveAttendanceBtn.addEventListener('click', () => {
+                const selectedLevel = attendanceLevelSelect.value;
+                const selectedClass = classSelect.value;
+                const date = new Date().toISOString().split('T')[0];
+                const studentsInClass = students.filter(
+                    student => student.level === selectedLevel && student.class === selectedClass
+                );
+                
+                let hasUncheckedStudents = false;
+                
+                studentsInClass.forEach(student => {
+                    const statusInputs = document.querySelectorAll(`input[name="attendance-${student.id}"]`);
+                    let selectedStatus = null;
+                    
+                    statusInputs.forEach(input => {
+                        if (input.checked) {
+                            selectedStatus = input.value;
+                        }
+                    });
+                    
+                    if (!selectedStatus) {
+                        hasUncheckedStudents = true;
+                        return;
+                    }
+                    
+                    // Check if attendance record already exists for this student on this date
+                    const existingRecordIndex = attendanceRecords.findIndex(
+                        record => record.studentId === student.id && record.date === date
+                    );
+                    
+                    if (existingRecordIndex !== -1) {
+                        // Update existing record
+                        attendanceRecords[existingRecordIndex].status = selectedStatus;
+                    } else {
+                        // Add new record
+                        attendanceRecords.push({
+                            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                            date: date,
+                            studentId: student.id,
+                            studentName: student.name,
+                            studentNis: student.nis,
+                            level: student.level,
+                            class: student.class,
+                            status: selectedStatus
+                        });
+                    }
+                });
+                
+                if (hasUncheckedStudents) {
+                    alert('Mohon lengkapi status kehadiran untuk semua siswa.');
+                    return;
+                }
+                
+                saveData();
+                renderRekapTable();
+                updateAttendanceStats();
+                
+                alert('Data absensi berhasil disimpan!');
+                
+                // Reset form
+                attendanceLevelSelect.value = '';
+                classSelect.value = '';
+                attendanceForm.classList.add('hidden');
+                noClassSelected.classList.remove('hidden');
+            });
+            
+            // Student level filter change
+            studentLevelFilter.addEventListener('change', () => {
+                updateStudentClassFilterOptions();
+                renderStudentTable();
+            });
+            
+            // Student class filter change
+            studentClassFilter.addEventListener('change', () => {
+                renderStudentTable();
+            });
+            
+            // Report type buttons
+            reportFilterBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Remove active class from all buttons
+                    reportFilterBtns.forEach(b => b.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    btn.classList.add('active');
+                    
+                    // Hide all filter sections
+                    Object.values(reportFilters).forEach(filter => filter.classList.add('hidden'));
+                    
+                    // Show selected filter section
+                    const reportType = btn.getAttribute('data-report-type');
+                    reportFilters[reportType].classList.remove('hidden');
+                });
+            });
+            
+            // Rekap level filter change
+            rekapLevelFilter.addEventListener('change', () => {
+                updateRekapClassFilterOptions('rekap-level-filter', 'rekap-class-filter');
+            });
+            
+            // Weekly rekap level filter change
+            document.getElementById('rekap-week-level-filter').addEventListener('change', () => {
+                updateRekapClassFilterOptions('rekap-week-level-filter', 'rekap-week-class-filter');
+            });
+            
+            // Monthly rekap level filter change
+            document.getElementById('rekap-month-level-filter').addEventListener('change', () => {
+                updateRekapClassFilterOptions('rekap-month-level-filter', 'rekap-month-class-filter');
+            });
+            
+            // Semester rekap level filter change
+            document.getElementById('rekap-semester-level-filter').addEventListener('change', () => {
+                updateRekapClassFilterOptions('rekap-semester-level-filter', 'rekap-semester-class-filter');
+            });
+            
+            // Apply filter button
+            applyFilterBtn.addEventListener('click', () => {
+                renderRekapTable();
+            });
+            
+            // Export PDF button
+            exportPdfBtn.addEventListener('click', exportToPdf);
+            
+            // Export Excel button
+            exportExcelBtn.addEventListener('click', exportToExcel);
+            
+            // Editable school name and teacher name
+            schoolNameElement.addEventListener('blur', function() {
+                appSettings.schoolName = this.textContent;
+                saveData();
+                updateAppSettings();
+            });
+            
+            teacherNameElement.addEventListener('blur', function() {
+                appSettings.teacherName = this.textContent;
+                saveData();
+                updateAppSettings();
+            });
+            
+            // Prevent form submission on Enter key for editable elements
+            schoolNameElement.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.blur();
+                }
+            });
+            
+            teacherNameElement.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.blur();
+                }
+            });
+            
+            // Save settings button
+            saveSettingsBtn.addEventListener('click', () => {
+                appSettings.schoolName = settingsSchoolNameInput.value;
+                appSettings.teacherName = settingsTeacherNameInput.value;
+                
+                saveData();
+                updateAppSettings();
+                
+                alert('Pengaturan berhasil disimpan!');
+            });
+            
+            // Save class settings button
+            saveClassSettingsBtn.addEventListener('click', () => {
+                appSettings.classSettings = {
+                    SD: {
+                        classes: parseInt(sdClassesInput.value) || 3,
+                        grades: parseInt(sdGradesInput.value) || 6
+                    },
+                    SMP: {
+                        classes: parseInt(smpClassesInput.value) || 3,
+                        grades: parseInt(smpGradesInput.value) || 3
+                    },
+                    SMA: {
+                        classes: parseInt(smaClassesInput.value) || 3,
+                        grades: parseInt(smaGradesInput.value) || 3
+                    }
+                };
+                
+                saveData();
+                updateClassDropdowns();
+                
+                alert('Pengaturan kelas berhasil disimpan!');
+            });
+            
+            // Export all data button
+            exportAllDataBtn.addEventListener('click', exportAllData);
+            
+            // Reset all data button
+            resetAllDataBtn.addEventListener('click', () => {
+                resetModal.classList.remove('hidden');
+            });
+            
+            // Cancel reset button
+            cancelResetBtn.addEventListener('click', () => {
+                resetModal.classList.add('hidden');
+            });
+            
+            // Confirm reset button
+            confirmResetBtn.addEventListener('click', () => {
+                // Reset all data
+                students = [];
+                attendanceRecords = [];
+                appSettings = {
+                    schoolName: "SD Negeri Ceria 01",
+                    teacherName: "Ibu Anisa",
+                    classSettings: {
+                        SD: { classes: 3, grades: 6 },
+                        SMP: { classes: 3, grades: 3 },
+                        SMA: { classes: 3, grades: 3 }
+                    }
+                };
+                
+                saveData();
+                renderStudentTable();
+                updateClassDropdowns();
+                renderRekapTable();
+                updateAttendanceStats();
+                updateAppSettings();
+                
+                resetModal.classList.add('hidden');
+                
+                alert('Semua data berhasil dihapus!');
+            });
+        }
+        
+        // Update student class options based on selected level
+        function updateStudentClassOptions() {
+            const selectedLevel = studentLevelInput.value;
+            studentClassInput.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            
+            if (!selectedLevel) return;
+            
+            const levelSettings = appSettings.classSettings[selectedLevel];
+            if (!levelSettings) return;
+            
+            const { grades, classes } = levelSettings;
+            
+            for (let grade = 1; grade <= grades; grade++) {
+                for (let classNum = 1; classNum <= classes; classNum++) {
+                    const className = `${grade}${String.fromCharCode(64 + classNum)}`;
+                    const option = document.createElement('option');
+                    option.value = className;
+                    option.textContent = className;
+                    studentClassInput.appendChild(option);
+                }
+            }
+        }
+        
+        // Update attendance class options based on selected level
+        function updateAttendanceClassOptions() {
+            const selectedLevel = attendanceLevelSelect.value;
+            classSelect.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            
+            if (!selectedLevel) return;
+            
+            // Get unique classes for the selected level
+            const classes = [...new Set(
+                students
+                    .filter(student => student.level === selectedLevel)
+                    .map(student => student.class)
+            )].sort();
+            
+            classes.forEach(className => {
+                const option = document.createElement('option');
+                option.value = className;
+                option.textContent = className;
+                classSelect.appendChild(option);
+            });
+        }
+        
+        // Update student class filter options based on selected level
+        function updateStudentClassFilterOptions() {
+            const selectedLevel = studentLevelFilter.value;
+            studentClassFilter.innerHTML = '<option value="all">Semua Kelas</option>';
+            
+            if (selectedLevel === 'all') return;
+            
+            // Get unique classes for the selected level
+            const classes = [...new Set(
+                students
+                    .filter(student => student.level === selectedLevel)
+                    .map(student => student.class)
+            )].sort();
+            
+            classes.forEach(className => {
+                const option = document.createElement('option');
+                option.value = className;
+                option.textContent = className;
+                studentClassFilter.appendChild(option);
+            });
+        }
+        
+        // Update rekap class filter options based on selected level
+        function updateRekapClassFilterOptions(levelFilterId, classFilterId) {
+            const levelFilter = document.getElementById(levelFilterId);
+            const classFilter = document.getElementById(classFilterId);
+            const selectedLevel = levelFilter.value;
+            
+            classFilter.innerHTML = '<option value="all">Semua Kelas</option>';
+            
+            if (selectedLevel === 'all') return;
+            
+            // Get unique classes for the selected level
+            const classes = [...new Set(
+                students
+                    .filter(student => student.level === selectedLevel)
+                    .map(student => student.class)
+            )].sort();
+            
+            classes.forEach(className => {
+                const option = document.createElement('option');
+                option.value = className;
+                option.textContent = className;
+                classFilter.appendChild(option);
+            });
+        }
+        
+        // Render student table
+        function renderStudentTable() {
+            let filteredStudents = [...students];
+            
+            // Apply level filter
+            const selectedLevel = studentLevelFilter.value;
+            if (selectedLevel !== 'all') {
+                filteredStudents = filteredStudents.filter(student => student.level === selectedLevel);
+            }
+            
+            // Apply class filter
+            const selectedClass = studentClassFilter.value;
+            if (selectedClass !== 'all') {
+                filteredStudents = filteredStudents.filter(student => student.class === selectedClass);
+            }
+            
+            if (filteredStudents.length === 0) {
+                studentTableBody.innerHTML = '';
+                noStudentsMessage.classList.remove('hidden');
+                return;
+            }
+            
+            noStudentsMessage.classList.add('hidden');
+            
+            studentTableBody.innerHTML = '';
+            filteredStudents.forEach((student, index) => {
+                const row = document.createElement('tr');
+                row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                
+                row.innerHTML = `
+                    <td class="py-3">${index + 1}</td>
+                    <td class="py-3">${student.name}</td>
+                    <td class="py-3">${student.nis}</td>
+                    <td class="py-3">${student.level}</td>
+                    <td class="py-3">${student.class}</td>
+                    <td class="py-3 text-center">
+                        <button class="edit-student-btn bg-blue-500 text-white rounded-lg px-3 py-1 mr-2 hover:bg-blue-600" data-id="${student.id}">
+                            ✏️ Edit
+                        </button>
+                        <button class="delete-student-btn bg-red-500 text-white rounded-lg px-3 py-1 hover:bg-red-600" data-id="${student.id}" data-name="${student.name}">
+                            🗑️ Hapus
+                        </button>
+                    </td>
+                `;
+                
+                studentTableBody.appendChild(row);
+            });
+            
+            // Add event listeners to edit and delete buttons
+            document.querySelectorAll('.edit-student-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.getAttribute('data-id');
+                    const student = students.find(s => s.id === id);
+                    
+                    if (student) {
+                        studentModalTitle.textContent = 'Edit Data Siswa';
+                        studentIdInput.value = student.id;
+                        studentNameInput.value = student.name;
+                        studentNisInput.value = student.nis;
+                        studentLevelInput.value = student.level;
+                        
+                        // Update class options based on selected level
+                        updateStudentClassOptions();
+                        
+                        // Set the class value after options are populated
+                        studentClassInput.value = student.class;
+                        
+                        studentModal.classList.remove('hidden');
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.delete-student-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.getAttribute('data-id');
+                    const name = button.getAttribute('data-name');
+                    
+                    deleteStudentName.textContent = name;
+                    deleteModal.classList.remove('hidden');
+                    
+                    confirmDeleteBtn.onclick = () => {
+                        students = students.filter(student => student.id !== id);
+                        
+                        // Also remove attendance records for this student
+                        attendanceRecords = attendanceRecords.filter(record => record.studentId !== id);
+                        
+                        saveData();
+                        renderStudentTable();
+                        updateClassDropdowns();
+                        renderRekapTable();
+                        updateAttendanceStats();
+                        deleteModal.classList.add('hidden');
+                    };
+                });
+            });
+        }
+        
+        // Update class dropdowns
+        function updateClassDropdowns() {
+            // Update student level filter options
+            updateStudentClassFilterOptions();
+            
+            // Update rekap level filter options
+            updateRekapClassFilterOptions('rekap-level-filter', 'rekap-class-filter');
+            updateRekapClassFilterOptions('rekap-week-level-filter', 'rekap-week-class-filter');
+            updateRekapClassFilterOptions('rekap-month-level-filter', 'rekap-month-class-filter');
+            updateRekapClassFilterOptions('rekap-semester-level-filter', 'rekap-semester-class-filter');
+        }
+        
+        // Render attendance form
+        function renderAttendanceForm(level, className) {
+            const studentsInClass = students.filter(
+                student => student.level === level && student.class === className
+            );
+            const date = new Date().toISOString().split('T')[0];
+            
+            attendanceTableBody.innerHTML = '';
+            
+            studentsInClass.forEach((student, index) => {
+                const row = document.createElement('tr');
+                row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                
+                // Check if attendance record already exists for this student on this date
+                const existingRecord = attendanceRecords.find(
+                    record => record.studentId === student.id && record.date === date
+                );
+                
+                const statusOptions = [
+                    { value: 'hadir', label: 'Hadir', emoji: '✅', color: 'green' },
+                    { value: 'izin', label: 'Izin', emoji: '📝', color: 'yellow' },
+                    { value: 'sakit', label: 'Sakit', emoji: '🤒', color: 'red' },
+                    { value: 'alfa', label: 'Alfa', emoji: '❌', color: 'gray' }
+                ];
+                
+                let statusHtml = '<div class="flex flex-wrap justify-center gap-2">';
+                
+                statusOptions.forEach(option => {
+                    const isChecked = existingRecord && existingRecord.status === option.value;
+                    statusHtml += `
+                        <label class="attendance-option cursor-pointer flex items-center p-2 rounded-lg border ${isChecked ? 'selected' : ''}" data-status="${option.value}">
+                            <input type="radio" name="attendance-${student.id}" value="${option.value}" class="hidden" ${isChecked ? 'checked' : ''}>
+                            <span class="flex flex-col items-center">
+                                <span class="text-xl">${option.emoji}</span>
+                                <span class="text-xs font-medium text-${option.color}-700">${option.label}</span>
+                            </span>
+                        </label>
+                    `;
+                });
+                
+                statusHtml += '</div>';
+                
+                row.innerHTML = `
+                    <td class="py-3">${index + 1}</td>
+                    <td class="py-3">${student.name}</td>
+                    <td class="py-3">${student.nis}</td>
+                    <td class="py-3 text-center">${statusHtml}</td>
+                `;
+                
+                attendanceTableBody.appendChild(row);
+            });
+            
+            // Add event listeners to attendance options
+            document.querySelectorAll('.attendance-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    const radio = option.querySelector('input[type="radio"]');
+                    radio.checked = true;
+                    
+                    // Remove selected class from all options in the same group
+                    const name = radio.getAttribute('name');
+                    document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
+                        input.closest('.attendance-option').classList.remove('selected');
+                    });
+                    
+                    // Add selected class to this option
+                    option.classList.add('selected');
+                });
+            });
+        }
+        
+        // Get current report type
+        function getCurrentReportType() {
+            const activeBtn = document.querySelector('.report-filter-btn.active');
+            return activeBtn ? activeBtn.getAttribute('data-report-type') : 'daily';
+        }
+        
+        // Get filtered records based on report type and filters
+        function getFilteredRecords() {
+            const reportType = getCurrentReportType();
+            let filteredRecords = [...attendanceRecords];
+            
+            // Apply date filters based on report type
+            switch (reportType) {
+                case 'daily':
+                    const selectedDate = rekapDate.value;
+                    if (selectedDate) {
+                        filteredRecords = filteredRecords.filter(record => record.date === selectedDate);
+                    }
+                    
+                    const selectedLevel = rekapLevelFilter.value;
+                    if (selectedLevel !== 'all') {
+                        filteredRecords = filteredRecords.filter(record => record.level === selectedLevel);
+                    }
+                    
+                    const selectedClass = rekapClassFilter.value;
+                    if (selectedClass !== 'all') {
+                        filteredRecords = filteredRecords.filter(record => record.class === selectedClass);
+                    }
+                    break;
+                    
+                case 'weekly':
+                    const weekStart = rekapWeekStart.value;
+                    const weekEnd = rekapWeekEnd.value;
+                    
+                    if (weekStart && weekEnd) {
+                        filteredRecords = filteredRecords.filter(record => {
+                            return record.date >= weekStart && record.date <= weekEnd;
+                        });
+                    }
+                    
+                    const weekLevel = document.getElementById('rekap-week-level-filter').value;
+                    if (weekLevel !== 'all') {
+                        filteredRecords = filteredRecords.filter(record => record.level === weekLevel);
+                    }
+                    
+                    const weekClass = document.getElementById('rekap-week-class-filter').value;
+                    if (weekClass !== 'all') {
+                        filteredRecords = filteredRecords.filter(record => record.class === weekClass);
+                    }
+                    break;
+                    
+                case 'monthly':
+                    const selectedMonth = rekapMonth.value;
+                    
+                    if (selectedMonth) {
+                        const [year, month] = selectedMonth.split('-');
+                        filteredRecords = filteredRecords.filter(record => {
+                            const [recordYear, recordMonth] = record.date.split('-');
+                            return recordYear === year && recordMonth === month;
+                        });
+                    }
+                    
+                    const monthLevel = document.getElementById('rekap-month-level-filter').value;
+                    if (monthLevel !== 'all') {
+                        filteredRecords = filteredRecords.filter(record => record.level === monthLevel);
+                    }
+                    
+                    const monthClass = document.getElementById('rekap-month-class-filter').value;
+                    if (monthClass !== 'all') {
+                        filteredRecords = filteredRecords.filter(record => record.class === monthClass);
+                    }
+                    break;
+                    
+                case 'semester':
+                    const selectedSemester = rekapSemester.value;
+                    const selectedYear = rekapYear.value;
+                    
+                    if (selectedSemester && selectedYear) {
+                        const [startYear, endYear] = selectedYear.split('/');
+                        
+                        // Define semester date ranges
+                        let startDate, endDate;
+                        
+                        if (selectedSemester === '1') {
+                            // First semester: July to December
+                            startDate = `${startYear}-07-01`;
+                            endDate = `${startYear}-12-31`;
+                        } else {
+                            // Second semester: January to June
+                            startDate = `${endYear}-01-01`;
+                            endDate = `${endYear}-06-30`;
+                        }
+                        
+                        filteredRecords = filteredRecords.filter(record => {
+                            return record.date >= startDate && record.date <= endDate;
+                        });
+                    }
+                    
+                    const semesterLevel = document.getElementById('rekap-semester-level-filter').value;
+                    if (semesterLevel !== 'all') {
+                        filteredRecords = filteredRecords.filter(record => record.level === semesterLevel);
+                    }
+                    
+                    const semesterClass = document.getElementById('rekap-semester-class-filter').value;
+                    if (semesterClass !== 'all') {
+                        filteredRecords = filteredRecords.filter(record => record.class === semesterClass);
+                    }
+                    break;
+            }
+            
+            // Sort by date (newest first)
+            filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            return filteredRecords;
+        }
+        
+        // Render rekap table
+        function renderRekapTable() {
+            const filteredRecords = getFilteredRecords();
+            
+            if (filteredRecords.length === 0) {
+                rekapTableBody.innerHTML = '';
+                noRekapData.classList.remove('hidden');
+                return;
+            }
+            
+            noRekapData.classList.add('hidden');
+            
+            rekapTableBody.innerHTML = '';
+            filteredRecords.forEach((record, index) => {
+                const row = document.createElement('tr');
+                row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                
+                // Format date
+                const dateParts = record.date.split('-');
+                const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+                
+                // Status badge
+                let statusBadge = '';
+                switch (record.status) {
+                    case 'hadir':
+                        statusBadge = '<span class="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800">Hadir</span>';
+                        break;
+                    case 'izin':
+                        statusBadge = '<span class="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-800">Izin</span>';
+                        break;
+                    case 'sakit':
+                        statusBadge = '<span class="inline-block px-3 py-1 rounded-full bg-red-100 text-red-800">Sakit</span>';
+                        break;
+                    case 'alfa':
+                        statusBadge = '<span class="inline-block px-3 py-1 rounded-full bg-gray-100 text-gray-800">Alfa</span>';
+                        break;
+                }
+                
+                row.innerHTML = `
+                    <td class="py-3">${index + 1}</td>
+                    <td class="py-3">${formattedDate}</td>
+                    <td class="py-3">${record.studentName}</td>
+                    <td class="py-3">${record.studentNis}</td>
+                    <td class="py-3">${record.level}</td>
+                    <td class="py-3">${record.class}</td>
+                    <td class="py-3 text-center">${statusBadge}</td>
+                `;
+                
+                rekapTableBody.appendChild(row);
+            });
+        }
+        
+        // Update attendance statistics
+        function updateAttendanceStats() {
+            // Get today's date
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Filter attendance records for today
+            const todayRecords = attendanceRecords.filter(record => record.date === today);
+            
+            // Count by status
+            const statHadir = todayRecords.filter(record => record.status === 'hadir').length;
+            const statIzin = todayRecords.filter(record => record.status === 'izin').length;
+            const statSakit = todayRecords.filter(record => record.status === 'sakit').length;
+            const statAlfa = todayRecords.filter(record => record.status === 'alfa').length;
+            
+            // Update the UI
+            document.getElementById('stat-hadir').textContent = statHadir;
+            document.getElementById('stat-izin').textContent = statIzin;
+            document.getElementById('stat-sakit').textContent = statSakit;
+            document.getElementById('stat-alfa').textContent = statAlfa;
+        }
+        
+        // Get report title based on current filters
+        function getReportTitle() {
+            const reportType = getCurrentReportType();
+            let title = `Rekap Absensi ${appSettings.schoolName} - `;
+            
+            switch (reportType) {
+                case 'daily':
+                    const date = rekapDate.value;
+                    if (date) {
+                        const dateParts = date.split('-');
+                        title += `Tanggal ${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+                    } else {
+                        title += 'Harian';
+                    }
+                    break;
+                    
+                case 'weekly':
+                    const weekStart = rekapWeekStart.value;
+                    const weekEnd = rekapWeekEnd.value;
+                    
+                    if (weekStart && weekEnd) {
+                        const startParts = weekStart.split('-');
+                        const endParts = weekEnd.split('-');
+                        title += `Minggu ${startParts[2]}/${startParts[1]}/${startParts[0]} - ${endParts[2]}/${endParts[1]}/${endParts[0]}`;
+                    } else {
+                        title += 'Mingguan';
+                    }
+                    break;
+                    
+                case 'monthly':
+                    const month = rekapMonth.value;
+                    
+                    if (month) {
+                        const [year, monthNum] = month.split('-');
+                        const monthNames = [
+                            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+                        ];
+                        title += `Bulan ${monthNames[parseInt(monthNum) - 1]} ${year}`;
+                    } else {
+                        title += 'Bulanan';
+                    }
+                    break;
+                    
+                case 'semester':
+                    const semester = rekapSemester.value;
+                    const year = rekapYear.value;
+                    
+                    if (semester && year) {
+                        title += `Semester ${semester} Tahun Ajaran ${year}`;
+                    } else {
+                        title += 'Semester';
+                    }
+                    break;
+            }
+            
+            return title;
+        }
+        
+        // Export to PDF
+        function exportToPdf() {
+            const { jspdf, jspdfAutotable } = window;
+            const { jsPDF } = jspdf;
+            
+            const doc = new jsPDF();
+            
+            // Add title
+            const title = getReportTitle();
+            doc.setFontSize(16);
+            doc.text(title, 14, 22);
+            
+            // Add date
+            const today = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            doc.setFontSize(10);
+            doc.text(`Dicetak pada: ${today.toLocaleDateString('id-ID', options)}`, 14, 30);
+            
+            // Get filtered data
+            const filteredRecords = getFilteredRecords();
+            
+            // Prepare table data
+            const tableData = filteredRecords.map((record, index) => {
+                // Format date
+                const dateParts = record.date.split('-');
+                const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+                
+                return [
+                    index + 1,
+                    formattedDate,
+                    record.studentName,
+                    record.studentNis,
+                    record.level,
+                    record.class,
+                    record.status.charAt(0).toUpperCase() + record.status.slice(1)
+                ];
+            });
+            
+            // Generate table
+            doc.autoTable({
+                startY: 35,
+                head: [['No', 'Tanggal', 'Nama Siswa', 'NIS', 'Jenjang', 'Kelas', 'Status Kehadiran']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [79, 70, 229],
+                    textColor: 255,
+                    fontStyle: 'bold'
+                },
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 3
+                },
+                columnStyles: {
+                    0: { cellWidth: 8 },
+                    1: { cellWidth: 20 },
+                    2: { cellWidth: 40 },
+                    3: { cellWidth: 20 },
+                    4: { cellWidth: 15 },
+                    5: { cellWidth: 15 },
+                    6: { cellWidth: 25 }
+                }
+            });
+            
+            // Save the PDF
+            const fileName = title.replace(/\s+/g, '_').replace(/:/g, '');
+            doc.save(`${fileName}.pdf`);
+        }
+        
+        // Export to Excel
+        function exportToExcel() {
+            const XLSX = window.XLSX;
+            
+            // Get filtered data
+            const filteredRecords = getFilteredRecords();
+            
+            // Prepare worksheet data
+            const wsData = [
+                ['No', 'Tanggal', 'Nama Siswa', 'NIS', 'Jenjang', 'Kelas', 'Status Kehadiran']
+            ];
+            
+            filteredRecords.forEach((record, index) => {
+                // Format date
+                const dateParts = record.date.split('-');
+                const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+                
+                wsData.push([
+                    index + 1,
+                    formattedDate,
+                    record.studentName,
+                    record.studentNis,
+                    record.level,
+                    record.class,
+                    record.status.charAt(0).toUpperCase() + record.status.slice(1)
+                ]);
+            });
+            
+            // Create worksheet
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Rekap Absensi');
+            
+            // Get title for filename
+            const title = getReportTitle();
+            const fileName = title.replace(/\s+/g, '_').replace(/:/g, '');
+            
+            // Save the Excel file
+            XLSX.writeFile(wb, `${fileName}.xlsx`);
+        }
+        
+        // Export all data
+        function exportAllData() {
+            const data = {
+                appSettings: appSettings,
+                students: students,
+                attendanceRecords: attendanceRecords
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `Data_Absensi_${appSettings.schoolName.replace(/\s+/g, '_')}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'963902616712c6f3',t:'MTc1MzI1MDk3MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
